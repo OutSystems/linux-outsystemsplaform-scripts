@@ -18,6 +18,8 @@
 #       * show errors when there are any
 #       * change sudo to su
 # v1.10 * Require root to run.
+# v1.11 * fix not collecting jboss data in jboss eap installations
+
 
 # TODO
 #      * separate logs into folders for easier navigation
@@ -29,7 +31,7 @@ PROCESS_USER=""
 LOGDAYS=30
 
 # prepare for execution
-echo "OutSystems Information Retriever v1.10"
+echo "OutSystems Information Retriever v1.11"
 echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
@@ -80,7 +82,13 @@ if [ "$JBOSS_HOME" != "" ]; then
 		PROCESS_PID=$(ps -u $PROCESS_USER 2>>/dev/null | grep java | gawk '{print $1}')
 	else
 		LOGS_FOLDER="$JBOSS_HOME/standalone/log/"
-		PROCESS_PID=$(cat /var/run/jboss-as/jboss-as-standalone-outsystems.pid)
+		if [ -f /var/run/jboss-as/jboss-as-standalone-outsystems.pid ]; then
+			PROCESS_PID=$(cat /var/run/jboss-as/jboss-as-standalone-outsystems.pid)
+			PID_MQ=$(cat /var/run/jboss-as/jboss-as-standalone-outsystems-mq.pid)
+		else
+			PROCESS_PID=$(ps -ef | grep java.*standalone-outsystems.xml | grep -v grep | awk '{print $2}')
+			PID_MQ=$(ps -ef | grep java.*standalone-outsystems-mq.xml | grep -v grep | awk '{print $2}')
+		fi
 	fi
 fi
 
@@ -180,7 +188,7 @@ else
 			echo "    * Thread Stacks"
 			su $PROCESS_USER - -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 			if [ -d $JBOSS_HOME/standalone/ ]; then
-				su $PROCESS_USER - -c "$JAVA_BIN/jstack $(cat /var/run/jboss-as/jboss-as-standalone-outsystems-mq.pid) > $DIR/threads_"$APPSERVER_NAME"_mq.log 2>> $DIR/errors.log"
+				su $PROCESS_USER - -c "$JAVA_BIN/jstack $PID_MQ > $DIR/threads_"$APPSERVER_NAME"_mq.log 2>> $DIR/errors.log"
 			fi
 		fi
 fi
@@ -239,7 +247,7 @@ else
 		else
 			su $PROCESS_USER - -c "$JAVA_BIN/jmap -J-d64 -dump:format=b,file=$DIR/heap.hprof $PROCESS_PID > /dev/null 2>> $DIR/errors.log"
 			if [ -d $JBOSS_HOME/standalone ]; then
-				su $PROCESS_USER - -c "$JAVA_BIN/jmap -J-d64 -dump:format=b,file=$DIR/heap_mq.hprof $(cat /var/run/jboss-as/jboss-as-standalone-outsystems-mq.pid) > /dev/null 2>> $DIR/errors.log"
+				su $PROCESS_USER - -c "$JAVA_BIN/jmap -J-d64 -dump:format=b,file=$DIR/heap_mq.hprof $PID_MQ > /dev/null 2>> $DIR/errors.log"
 			fi
 		fi
 	fi
