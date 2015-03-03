@@ -7,5 +7,8 @@ ESPACES=$(ls $JBOSS_HOME/standalone/deployments/ | grep \\.war$ | grep -v custom
 
 for espace in $ESPACES; do
 	cd $JBOSS_HOME/standalone/deployments/$espace.war
-	echo $espace $(find -type f -or -type l | sort | xargs md5sum | md5sum | awk '{print $1}')
+	find -type f -or -type l | sort | xargs md5sum > /tmp/$espace.os.md5
+	echo $espace $(md5sum /tmp/$espace.os.md5 | awk '{print $1}')
 done
+
+tar -zcf /tmp/deploy_check.tgz  /tmp/*.os.md5 
