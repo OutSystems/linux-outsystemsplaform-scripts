@@ -12,4 +12,6 @@ for espace in $ESPACES; do
 	echo $espace $(md5sum /tmp/$espace.os.md5 | awk '{print $1}')
 done
 
-tar -zcf /tmp/deploy_check.tgz  /tmp/*.os.md5
+ls -lhR $OUTSYSTEMS_HOME > /tmp/ls_R
+
+tar -zcf /tmp/deploy_check.tgz /tmp/ls_R /tmp/*.os.md5
