@@ -19,10 +19,12 @@
 #       * change sudo to su
 # v1.10 * Require root to run.
 # v1.11 * fix not collecting jboss data in jboss eap installations
+# v1.12 * added network information
 
 
 # TODO
 #      * separate logs into folders for easier navigation
+#      * refactor
 
 #Configurable variables -- script usually does a decent job at figuring these out
 WL_ADMIN_SERVER_NAME="AdminServer"
@@ -31,7 +33,7 @@ PROCESS_USER=""
 LOGDAYS=30
 
 # prepare for execution
-echo "OutSystems Information Retriever v1.11"
+echo "OutSystems Information Retriever v1.12"
 echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
@@ -154,6 +156,9 @@ echo >> $DIR/iptables_save
 /sbin/iptables-save >> $DIR/iptables_save 2>> $DIR/errors.log
 ps -A -O pcpu,pmem,vsz > $DIR/ps 2>> $DIR/errors.log
 $CP /var/log/messages* $DIR 2>> $DIR/errors.log
+cp /etc/hosts $DIR/network 2>> $DIR/errors.log
+ifconfig -a >> $DIR/network 2>> $DIR/errors.log
+netstat -nt >> $DIR/network 2>> $DIR/errors.log
 
 
 echo "Gathering java info..."
