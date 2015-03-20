@@ -20,6 +20,7 @@
 # v1.10 * Require root to run.
 # v1.11 * fix not collecting jboss data in jboss eap installations
 # v1.12 * added network information
+# v1.13 * added (more) network information
 
 
 # TODO
@@ -33,7 +34,7 @@ PROCESS_USER=""
 LOGDAYS=30
 
 # prepare for execution
-echo "OutSystems Information Retriever v1.12"
+echo "OutSystems Information Retriever v1.13"
 echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
@@ -158,7 +159,7 @@ ps -A -O pcpu,pmem,vsz > $DIR/ps 2>> $DIR/errors.log
 $CP /var/log/messages* $DIR 2>> $DIR/errors.log
 cp /etc/hosts $DIR/network 2>> $DIR/errors.log
 ifconfig -a >> $DIR/network 2>> $DIR/errors.log
-netstat -nt >> $DIR/network 2>> $DIR/errors.log
+netstat -natp >> $DIR/network 2>> $DIR/errors.log
 
 
 echo "Gathering java info..."
