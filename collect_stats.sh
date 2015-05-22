@@ -21,6 +21,7 @@
 # v1.11 * fix not collecting jboss data in jboss eap installations
 # v1.12 * added network information
 # v1.13 * added (more) network information
+# v1.14 * added ls -lR of outsystems and jboss dir for troubleshooting permission problems
 
 
 # TODO
@@ -34,7 +35,7 @@ PROCESS_USER=""
 LOGDAYS=30
 
 # prepare for execution
-echo "OutSystems Information Retriever v1.13"
+echo "OutSystems Information Retriever v1.14"
 echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
@@ -160,6 +161,8 @@ $CP /var/log/messages* $DIR 2>> $DIR/errors.log
 cp /etc/hosts $DIR/network 2>> $DIR/errors.log
 ifconfig -a >> $DIR/network 2>> $DIR/errors.log
 netstat -natp >> $DIR/network 2>> $DIR/errors.log
+ls -lR $OUTSYSTEMS_HOME > $DIR/ls_outsystems 2>> $DIR/errors.log
+ls -lR $JBOSS_HOME > $DIR/ls_jboss 2>> $DIR/errors.log
 
 
 echo "Gathering java info..."
