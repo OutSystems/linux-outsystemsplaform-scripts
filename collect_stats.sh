@@ -231,7 +231,9 @@ if [ "$APPSERVER_NAME" == "$JBOSS_NAME" ]; then
 		$CP -r $JBOSS_HOME/standalone/configuration-mq/ $DIR 2>> $DIR/errors.log
 		$CP $JBOSS_HOME/bin/standalone-outsystems.conf $DIR 2>> $DIR/errors.log
 		$CP $JBOSS_HOME/bin/standalone-outsystems-mq.conf $DIR 2>> $DIR/errors.log
-		$CP /var/log/jboss-as/console-outsystems.log $DIR 2>> $DIR/errors.log
+		if [ -f /var/log/jboss-as/console-outsystems.log ]; then
+		  $CP /var/log/jboss-as/console-outsystems.log $DIR 2>> $DIR/errors.log
+		fi
 	fi
 fi
 
