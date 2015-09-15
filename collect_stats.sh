@@ -22,6 +22,7 @@
 # v1.12 * added network information
 # v1.13 * added (more) network information
 # v1.14 * added ls -lR of outsystems and jboss dir for troubleshooting permission problems
+# v1.15 * added /var/log/jboss-as/console-outsystems.log
 
 
 # TODO
@@ -35,7 +36,7 @@ PROCESS_USER=""
 LOGDAYS=30
 
 # prepare for execution
-echo "OutSystems Information Retriever v1.14"
+echo "OutSystems Information Retriever v1.15"
 echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
@@ -230,6 +231,7 @@ if [ "$APPSERVER_NAME" == "$JBOSS_NAME" ]; then
 		$CP -r $JBOSS_HOME/standalone/configuration-mq/ $DIR 2>> $DIR/errors.log
 		$CP $JBOSS_HOME/bin/standalone-outsystems.conf $DIR 2>> $DIR/errors.log
 		$CP $JBOSS_HOME/bin/standalone-outsystems-mq.conf $DIR 2>> $DIR/errors.log
+		$CP /var/log/jboss-as/console-outsystems.log $DIR 2>> $DIR/errors.log
 	fi
 fi
 
