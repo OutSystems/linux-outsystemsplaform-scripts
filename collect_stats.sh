@@ -23,7 +23,10 @@
 # v1.13 * added (more) network information
 # v1.14 * added ls -lR of outsystems and jboss dir for troubleshooting permission problems
 # v1.15 * added /var/log/jboss-as/console-outsystems.log
-
+# v1.16 * added redhat-release file
+#       * added ulimit
+#       * added support for wildfly
+#       * fixed issue with services
 
 # TODO
 #      * separate logs into folders for easier navigation
@@ -36,7 +39,7 @@ PROCESS_USER=""
 LOGDAYS=30
 
 # prepare for execution
-echo "OutSystems Information Retriever v1.15"
+echo "OutSystems Information Retriever v1.16"
 echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
@@ -95,6 +98,15 @@ if [ "$JBOSS_HOME" != "" ]; then
 			PID_MQ=$(ps -ef | grep java.*standalone-outsystems-mq.xml | grep -v grep | awk '{print $2}')
 		fi
 	fi
+fi
+
+if [ "$WILDFLY_HOME" != "" ]; then
+       APPSERVER_NAME="Wildfly"
+       PROCESS_USER="wildfly"
+       LOGS_FOLDER=$WILDFLY_HOME/standalone/log/
+       PROCESS_PID=$(ps -ef | grep java.*standalone-outsystems.xml | grep -v grep | awk '{print $2}')
+       PID_MQ=$(ps -ef | grep java.*standalone-outsystems-mq.xml | grep -v grep | awk '{print $2}')
+       JBOSS_HOME=$WILDFLY_HOME
 fi
 
 if [ "$WL_DOMAIN" != "" ]; then
@@ -164,6 +176,13 @@ ifconfig -a >> $DIR/network 2>> $DIR/errors.log
 netstat -natp >> $DIR/network 2>> $DIR/errors.log
 ls -lR $OUTSYSTEMS_HOME > $DIR/ls_outsystems 2>> $DIR/errors.log
 ls -lR $JBOSS_HOME > $DIR/ls_jboss 2>> $DIR/errors.log
+su $PROCESS_USER -c "ulimit -a" > $DIR/limits 2>> $DIR/errors.log
+if [ -f /etc/redhat-release ]; then
+	cp /etc/redhat-release $DIR 2>> $DIR/errors.log
+fi
+if [ -f /etc/system-release ]; then
+	cp /etc/system-release $DIR 2>> $DIR/errors.log
+fi
 
 
 echo "Gathering java info..."
@@ -239,7 +258,7 @@ fi
 
 
 echo "Gathering OutSystems Services info ..."
-for SERVICE_INFO in $($JAVA_HOME/bin/jps -l | grep outsystems.hubedition | tr ' ' '|')
+for SERVICE_INFO in $(su outsystems -c "$JAVA_HOME/bin/jps -l" | grep outsystems.hubedition | tr ' ' '|')
 do
 	eval $(echo "$SERVICE_INFO" | gawk -F "|" '{print "SERVICE_PID="$1";SERVICE_PROCESS_NAME="$2}')
 	if [ -f $JAVA_HOME/bin/jrcmd ]; then
