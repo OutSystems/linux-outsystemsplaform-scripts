@@ -27,6 +27,12 @@
 #       * added ulimit
 #       * added support for wildfly
 #       * fixed issue with services
+# v1.17 * added rpm -qa
+#       * added pmap of app server
+#       * added pmap of services
+#       * added collect_stats version to toolinfo
+#       * added jvm options
+#       * fixed issue with configurations not being added in wildfly
 
 # TODO
 #      * separate logs into folders for easier navigation
@@ -38,9 +44,9 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
+VERSION="1.17"
+
 # prepare for execution
-echo "OutSystems Information Retriever v1.16"
-echo
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
 	echo "OutSystems Platform is not installed on this server. Cancelling."
@@ -62,6 +68,7 @@ chmod 777 $DIR/errors.log
 APPSERVER_NAME="Application Server"
 WEBLOGIC_NAME="WebLogic"
 JBOSS_NAME="JBoss"
+WILDFLY_NAME="Wildfly"
 
 function askYesNo() {
 	local answerYN="$1"
@@ -101,7 +108,7 @@ if [ "$JBOSS_HOME" != "" ]; then
 fi
 
 if [ "$WILDFLY_HOME" != "" ]; then
-       APPSERVER_NAME="Wildfly"
+       APPSERVER_NAME=$WILDFLY_NAME
        PROCESS_USER="wildfly"
        LOGS_FOLDER=$WILDFLY_HOME/standalone/log/
        PROCESS_PID=$(ps -ef | grep java.*standalone-outsystems.xml | grep -v grep | awk '{print $2}')
@@ -131,6 +138,8 @@ if [ -f $JAVA_BIN/../../bin/java ]; then
 	JAVA_BIN="$JAVA_BIN/../../bin/"
 fi
 
+echo "OutSystems Information Retriever v$VERSION" >> $DIR/toolinfo
+echo >> $DIR/toolinfo
 echo "OutSystems Platform Directory: $OUTSYSTEMS_HOME" >> $DIR/toolinfo
 echo "Java Directory: $JAVA_BIN"  >> $DIR/toolinfo
 echo "$APPSERVER_NAME user: $PROCESS_USER" >> $DIR/toolinfo
@@ -169,7 +178,7 @@ df -h -l > $DIR/partInfo 2>> $DIR/errors.log
 chkconfig --list iptables > $DIR/iptables_save
 echo >> $DIR/iptables_save
 /sbin/iptables-save >> $DIR/iptables_save 2>> $DIR/errors.log
-ps -A -O pcpu,pmem,vsz > $DIR/ps 2>> $DIR/errors.log
+ps -A -O pcpu,user,pmem,vsz > $DIR/ps 2>> $DIR/errors.log
 $CP /var/log/messages* $DIR 2>> $DIR/errors.log
 cp /etc/hosts $DIR/network 2>> $DIR/errors.log
 ifconfig -a >> $DIR/network 2>> $DIR/errors.log
@@ -183,10 +192,13 @@ fi
 if [ -f /etc/system-release ]; then
 	cp /etc/system-release $DIR 2>> $DIR/errors.log
 fi
+rpm -qa > $DIR/rpms
 
 
 echo "Gathering java info..."
-$JAVA_BIN/java -version 2> $DIR/javaVersion 
+$JAVA_BIN/java -XX:+PrintFlagsFinal -version > $DIR/jvm_options 2> $DIR/javaVersion 
+
+
 
 echo "Gathering platform info..."
 # configurations
@@ -203,6 +215,7 @@ else
 		echo "    * CPU statistics"
 		# cpu status
 		top -b -n 5 -p $PROCESS_PID > $DIR/cpu_"$APPSERVER_NAME".log 2>> $DIR/errors.log
+		pmap -d $PROCESS_PID > $DIR/pmap_$APPSERVER_NAME 2>> $DIR/errors.log
 		if [ -f $JAVA_BIN/jrcmd ]; then
 			echo "    * Thread Stacks"
 			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $PROCESS_PID print_threads > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
@@ -230,7 +243,7 @@ fi
 
 
 #JBoss Specific
-if [ "$APPSERVER_NAME" == "$JBOSS_NAME" ]; then
+if [ "$APPSERVER_NAME" == "$JBOSS_NAME" -o "$APPSERVER_NAME" == "$WILDFLY_NAME" ]; then
 	echo "    * Configurations"
 	# H2 directory
 	if [ -d $JBOSS_HOME/server/outsystems/data/h2/ ] ; then 
@@ -266,6 +279,7 @@ do
 	else
 		su outsystems - -c "$JAVA_HOME/bin/jstack $SERVICE_PID > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
 	fi
+	pmap -d $SERVICE_PID > pmap_$SERVICE_PROCESS_NAME
 done
 
 if [ "$PROCESS_PID" == "" ]; then
