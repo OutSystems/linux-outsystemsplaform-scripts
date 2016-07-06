@@ -279,7 +279,7 @@ do
 	else
 		su outsystems - -c "$JAVA_HOME/bin/jstack $SERVICE_PID > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
 	fi
-	pmap -d $SERVICE_PID > pmap_$SERVICE_PROCESS_NAME
+	pmap -d $SERVICE_PID > $DIR/pmap_$SERVICE_PROCESS_NAME
 done
 
 if [ "$PROCESS_PID" == "" ]; then
