@@ -33,6 +33,8 @@
 #       * added collect_stats version to toolinfo
 #       * added jvm options
 #       * fixed issue with configurations not being added in wildfly
+# v1.18 * added warning when installed on symlink
+
 
 # TODO
 #      * separate logs into folders for easier navigation
@@ -44,7 +46,7 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
-VERSION="1.17"
+VERSION="1.18"
 
 # prepare for execution
 
@@ -140,7 +142,15 @@ fi
 
 echo "OutSystems Information Retriever v$VERSION" >> $DIR/toolinfo
 echo >> $DIR/toolinfo
-echo "OutSystems Platform Directory: $OUTSYSTEMS_HOME" >> $DIR/toolinfo
+echo "OutSystems platform Directory: $OUTSYSTEMS_HOME" >> $DIR/toolinfo
+
+if [ -h /opt -o -h /opt/outsystems -o -h /opt/outsystems/platform -o -h /opt/outsystems/platform/share ]; then
+	echo >> $DIR/toolinfo
+	echo "WARNING: OutSystems is installed on a symlink." >> $DIR/toolinfo
+	echo "  From version 9.1 this may make it impossible to publish modules with web references." >> $DIR/toolinfo
+	echo >> $DIR/toolinfo
+fi
+
 echo "Java Directory: $JAVA_BIN"  >> $DIR/toolinfo
 echo "$APPSERVER_NAME user: $PROCESS_USER" >> $DIR/toolinfo
 echo "$APPSERVER_NAME pid: $PROCESS_PID" >> $DIR/toolinfo
