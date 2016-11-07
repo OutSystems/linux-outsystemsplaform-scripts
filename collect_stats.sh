@@ -34,6 +34,7 @@
 #       * added jvm options
 #       * fixed issue with configurations not being added in wildfly
 # v1.18 * added warning when installed on symlink
+# v1.19 * fixed no thread dumps when shell for user is /sbin/nologin
 
 
 # TODO
@@ -46,7 +47,7 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
-VERSION="1.18"
+VERSION="1.19"
 
 # prepare for execution
 
@@ -195,7 +196,7 @@ ifconfig -a >> $DIR/network 2>> $DIR/errors.log
 netstat -natp >> $DIR/network 2>> $DIR/errors.log
 ls -lR $OUTSYSTEMS_HOME > $DIR/ls_outsystems 2>> $DIR/errors.log
 ls -lR $JBOSS_HOME > $DIR/ls_jboss 2>> $DIR/errors.log
-su $PROCESS_USER -c "ulimit -a" > $DIR/limits 2>> $DIR/errors.log
+su $PROCESS_USER -s /bin/bash -c "ulimit -a" > $DIR/limits 2>> $DIR/errors.log
 if [ -f /etc/redhat-release ]; then
 	cp /etc/redhat-release $DIR 2>> $DIR/errors.log
 fi
@@ -228,19 +229,19 @@ else
 		pmap -d $PROCESS_PID > $DIR/pmap_$APPSERVER_NAME 2>> $DIR/errors.log
 		if [ -f $JAVA_BIN/jrcmd ]; then
 			echo "    * Thread Stacks"
-			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $PROCESS_PID print_threads > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
-			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $ADMINSERVER_PID print_threads > $DIR/threads_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID print_threads > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $ADMINSERVER_PID print_threads > $DIR/threads_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"
 			echo "    * Java Counters"
-			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $PROCESS_PID -l > $DIR/counters_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID -l > $DIR/counters_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 			echo "    * Object Summary"
-			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $PROCESS_PID print_object_summary > $DIR/object_summary_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID print_object_summary > $DIR/object_summary_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 			echo "    * Heap Diagnostics"
-			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $PROCESS_PID heap_diagnostics > $DIR/heap_diagnostics_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID heap_diagnostics > $DIR/heap_diagnostics_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 		else
 			echo "    * Thread Stacks"
-			su $PROCESS_USER - -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 			if [ -d $JBOSS_HOME/standalone/ ]; then
-				su $PROCESS_USER - -c "$JAVA_BIN/jstack $PID_MQ > $DIR/threads_"$APPSERVER_NAME"_mq.log 2>> $DIR/errors.log"
+				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PID_MQ > $DIR/threads_"$APPSERVER_NAME"_mq.log 2>> $DIR/errors.log"
 			fi
 		fi
 fi
@@ -248,7 +249,7 @@ fi
 # Weblogic Specific
 if [ "$APPSERVER_NAME" == "$WEBLOGIC_NAME" ]; then
 	echo "    * Patch information"
-	su $PROCESS_USER - -c "cd $MW_HOME/utils/bsu ; ./bsu.sh -prod_dir=$WL_HOME -status=applied -verbose -view > $DIR/weblogic_patches 2>> $DIR/errors.log"
+	su $PROCESS_USER - -s /bin/bash -c "cd $MW_HOME/utils/bsu ; ./bsu.sh -prod_dir=$WL_HOME -status=applied -verbose -view > $DIR/weblogic_patches 2>> $DIR/errors.log"
 fi
 
 
@@ -285,9 +286,9 @@ for SERVICE_INFO in $(su outsystems -c "$JAVA_HOME/bin/jps -l" | grep outsystems
 do
 	eval $(echo "$SERVICE_INFO" | gawk -F "|" '{print "SERVICE_PID="$1";SERVICE_PROCESS_NAME="$2}')
 	if [ -f $JAVA_HOME/bin/jrcmd ]; then
-		su outsystems - -c "$JAVA_HOME/bin/jrcmd $SERVICE_PID print_threads > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
+		su outsystems - -s /bin/bash -c "$JAVA_HOME/bin/jrcmd $SERVICE_PID print_threads > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
 	else
-		su outsystems - -c "$JAVA_HOME/bin/jstack $SERVICE_PID > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
+		su outsystems - -s /bin/bash -c "$JAVA_HOME/bin/jstack $SERVICE_PID > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
 	fi
 	pmap -d $SERVICE_PID > $DIR/pmap_$SERVICE_PROCESS_NAME
 done
@@ -299,11 +300,11 @@ else
 		echo "Gathering $APPSERVER_NAME (Process $PROCESS_PID) memory dump..."
 		# heap dump
 		if [ -f $JAVA_BIN/jrcmd ]; then
-			su $PROCESS_USER - -c "$JAVA_BIN/jrcmd $PROCESS_PID hprofdump filename=$DIR/heap.hprof > /dev/null 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID hprofdump filename=$DIR/heap.hprof > /dev/null 2>> $DIR/errors.log"
 		else
 			su $PROCESS_USER - -c "$JAVA_BIN/jmap -J-d64 -dump:format=b,file=$DIR/heap.hprof $PROCESS_PID > /dev/null 2>> $DIR/errors.log"
 			if [ -d $JBOSS_HOME/standalone ]; then
-				su $PROCESS_USER - -c "$JAVA_BIN/jmap -J-d64 -dump:format=b,file=$DIR/heap_mq.hprof $PID_MQ > /dev/null 2>> $DIR/errors.log"
+				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jmap -J-d64 -dump:format=b,file=$DIR/heap_mq.hprof $PID_MQ > /dev/null 2>> $DIR/errors.log"
 			fi
 		fi
 	fi
