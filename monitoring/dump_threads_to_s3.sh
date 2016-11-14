@@ -25,6 +25,8 @@ fi
 
 su wildfly -c "$JAVA_HOME/bin/jstack $PROCESS_PID" > $DIR/threads_JBoss.log 2>> $DIR/errors.log
 
-aws s3 cp $DIR/threads_JBoss.log s3://outsystemssupport/cases/$CASEID/$(hostname)/$(date +%F_%H%M%S).log
+gzip $DIR/threads_JBoss.log
+
+aws s3 cp $DIR/threads_JBoss.log.gz s3://outsystemssupport/cases/$CASEID/$(hostname)/$(date +%F_%H%M%S).log.gz
 
 rm -rf $DIR
