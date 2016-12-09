@@ -35,6 +35,7 @@
 #       * fixed issue with configurations not being added in wildfly
 # v1.18 * added warning when installed on symlink
 # v1.19 * fixed no thread dumps when shell for user is /sbin/nologin
+# v1.20 * added hs_error files for further troubleshooting when vm crashes
 
 
 # TODO
@@ -47,7 +48,7 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
-VERSION="1.19"
+VERSION="1.20"
 
 # prepare for execution
 
@@ -204,6 +205,8 @@ if [ -f /etc/system-release ]; then
 	cp /etc/system-release $DIR 2>> $DIR/errors.log
 fi
 rpm -qa > $DIR/rpms
+# it's likely this doesn't exist and there's an error
+$CP $(getent passwd $PROCESS_USER | cut -d: -f6)/hs_err_* $DIR 2> $DIR/non_fatal_errors.log 
 
 
 echo "Gathering java info..."
