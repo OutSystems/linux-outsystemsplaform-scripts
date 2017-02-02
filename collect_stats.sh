@@ -36,6 +36,7 @@
 # v1.18 * added warning when installed on symlink
 # v1.19 * fixed no thread dumps when shell for user is /sbin/nologin
 # v1.20 * added hs_error files for further troubleshooting when vm crashes
+# v1.21 * added standalone-outsystems properties files
 
 
 # TODO
@@ -48,7 +49,7 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
-VERSION="1.20"
+VERSION="1.21"
 
 # prepare for execution
 
@@ -277,6 +278,8 @@ if [ "$APPSERVER_NAME" == "$JBOSS_NAME" -o "$APPSERVER_NAME" == "$WILDFLY_NAME" 
 		$CP -r $JBOSS_HOME/standalone/configuration-mq/ $DIR 2>> $DIR/errors.log
 		$CP $JBOSS_HOME/bin/standalone-outsystems.conf $DIR 2>> $DIR/errors.log
 		$CP $JBOSS_HOME/bin/standalone-outsystems-mq.conf $DIR 2>> $DIR/errors.log
+		$CP $JBOSS_HOME/bin/standalone-outsystems-mq.properties $DIR 2>> $DIR/errors.log
+		$CP $JBOSS_HOME/bin/standalone-outsystems.properties $DIR 2>> $DIR/errors.log
 		if [ -f /var/log/jboss-as/console-outsystems.log ]; then
 		  $CP /var/log/jboss-as/console-outsystems.log $DIR 2>> $DIR/errors.log
 		fi
