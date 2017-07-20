@@ -37,6 +37,7 @@
 # v1.19 * fixed no thread dumps when shell for user is /sbin/nologin
 # v1.20 * added hs_error files for further troubleshooting when vm crashes
 # v1.21 * added standalone-outsystems properties files
+# v1.22 * fixed no memory dumps in jboss when shell for user is /sbin/nologin
 
 
 # TODO
@@ -49,7 +50,7 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
-VERSION="1.21"
+VERSION="1.22"
 
 # prepare for execution
 
