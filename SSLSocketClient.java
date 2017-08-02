@@ -50,6 +50,7 @@ import javax.net.ssl.*;
 public class SSLSocketClient {
 
     public static void main(String[] args) throws Exception {
+		System.setProperty("javax.net.debug", "all");
         try {
             SSLSocketFactory factory =
                 (SSLSocketFactory)SSLSocketFactory.getDefault();
