@@ -52,7 +52,7 @@ WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
 
-VERSION="1.22"
+VERSION="1.23"
 
 # prepare for execution
 
