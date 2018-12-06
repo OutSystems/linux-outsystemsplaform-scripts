@@ -38,7 +38,9 @@
 # v1.20 * added hs_error files for further troubleshooting when vm crashes
 # v1.21 * added standalone-outsystems properties files
 # v1.22 * fixed no memory dumps in jboss when shell for user is /sbin/nologin
+# v1.23 * added a validation to check if the app_server thread dump is empty; If it's empty, forces the thread dump generation using jstack -F
 
+# 
 
 # TODO
 #      * separate logs into folders for easier navigation
@@ -235,6 +237,10 @@ else
 		if [ -f $JAVA_BIN/jrcmd ]; then
 			echo "    * Thread Stacks"
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID print_threads > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			if ! [ -s "$DIR/threads_"$APPSERVER_NAME".log" ]; then
+                                echo "  *$DIR/threads_"$APPSERVER_NAME".log empty; Forcing dump file*"
+                                su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack -F $PROCESS_PID > $DIR/threads_F_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+                        fi
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $ADMINSERVER_PID print_threads > $DIR/threads_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"
 			echo "    * Java Counters"
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID -l > $DIR/counters_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
@@ -244,7 +250,11 @@ else
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID heap_diagnostics > $DIR/heap_diagnostics_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 		else
 			echo "    * Thread Stacks"
-			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"		
+                        if ! [ -s "$DIR/threads_"$APPSERVER_NAME".log" ]; then
+				echo "	*$DIR/threads_"$APPSERVER_NAME".log empty; Forcing dump file*" 
+				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack -F $PROCESS_PID > $DIR/threads_F_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+			fi
 			if [ -d $JBOSS_HOME/standalone/ ]; then
 				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PID_MQ > $DIR/threads_"$APPSERVER_NAME"_mq.log 2>> $DIR/errors.log"
 			fi
