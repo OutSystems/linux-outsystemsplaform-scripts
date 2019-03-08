@@ -39,6 +39,7 @@
 # v1.21 * added standalone-outsystems properties files
 # v1.22 * fixed no memory dumps in jboss when shell for user is /sbin/nologin
 # v1.23 * added a validation to check if the app_server thread dump is empty; If it's empty, forces the thread dump generation using jstack -F
+# v1.24 * added Weblogic information: AdminServer.log, weblogic patches (fixed), AdminServer thread dumps
 
 # 
 
@@ -51,8 +52,9 @@ WL_ADMIN_SERVER_NAME="AdminServer"
 WL_MANAGED_SERVER_NAME=""
 PROCESS_USER=""
 LOGDAYS=30
+LOGS_FOLDER_ADMIN_SERVER=""
 
-VERSION="1.23"
+VERSION="1.24"
 
 # prepare for execution
 
@@ -138,6 +140,7 @@ if [ "$WL_DOMAIN" != "" ]; then
 		PROCESS_PID=$(ps -u $PROCESS_USER --format "pid cmd" 2>>/dev/null | grep java | grep weblogic.Server | grep weblogic.Name=$WL_MANAGED_SERVER_NAME | gawk '{print $1}')
 	fi
 	LOGS_FOLDER="$WL_DOMAIN/servers/$WL_MANAGED_SERVER_NAME/logs"
+	LOGS_FOLDER_ADMIN_SERVER="$WL_DOMAIN/servers/$WL_ADMIN_SERVER_NAME/logs"
 fi
 
 JAVA_BIN=$(dirname "$(readlink /proc/$PROCESS_PID/exe)")
@@ -178,6 +181,12 @@ else
 	# Application Server Logs
 	# $CP $LOGS_FOLDER/*.log* $DIR 2>> $DIR/errors.log
 	find $LOGS_FOLDER/ -name '*.log*' -ctime -$LOGDAYS -exec $CP \{\} $DIR \;
+
+	# for Weblogic, add AdminServer.log file
+	if [ "$WL_DOMAIN" != "" ]; then
+		find $LOGS_FOLDER_ADMIN_SERVER -name '*.log*' -ctime -$LOGDAYS -exec $CP \{\} $DIR \;
+	fi
+
 	# $CP $LOGS_FOLDER/*.out* $DIR 2>> $DIR/errors.log
 	find $LOGS_FOLDER/ -name '*.out*' -ctime -$LOGDAYS -exec $CP \{\} $DIR \;
 
@@ -234,13 +243,14 @@ else
 		# cpu status
 		top -b -n 5 -p $PROCESS_PID > $DIR/cpu_"$APPSERVER_NAME".log 2>> $DIR/errors.log
 		pmap -d $PROCESS_PID > $DIR/pmap_$APPSERVER_NAME 2>> $DIR/errors.log
+		
 		if [ -f $JAVA_BIN/jrcmd ]; then
 			echo "    * Thread Stacks"
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID print_threads > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 			if ! [ -s "$DIR/threads_"$APPSERVER_NAME".log" ]; then
-                                echo "  *$DIR/threads_"$APPSERVER_NAME".log empty; Forcing dump file*"
-                                su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack -F $PROCESS_PID > $DIR/threads_F_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
-                        fi
+                echo "  *$DIR/threads_"$APPSERVER_NAME".log empty; Forcing dump file*"
+                su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack -F $PROCESS_PID > $DIR/threads_F_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
+            fi
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $ADMINSERVER_PID print_threads > $DIR/threads_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"
 			echo "    * Java Counters"
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID -l > $DIR/counters_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
@@ -251,10 +261,20 @@ else
 		else
 			echo "    * Thread Stacks"
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"		
-                        if ! [ -s "$DIR/threads_"$APPSERVER_NAME".log" ]; then
+            if ! [ -s "$DIR/threads_"$APPSERVER_NAME".log" ]; then
 				echo "	*$DIR/threads_"$APPSERVER_NAME".log empty; Forcing dump file*" 
 				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack -F $PROCESS_PID > $DIR/threads_F_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 			fi
+
+			# for Weblogic, also add AdminServer thread dumps
+			if [ "$WL_DOMAIN" != "" ]; then
+				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $ADMINSERVER_PID > $DIR/threads_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"		
+            	if ! [ -s "$DIR/threads_"$WL_ADMIN_SERVER_NAME".log" ]; then
+					echo "	*$DIR/threads_"$WL_ADMIN_SERVER_NAME".log empty; Forcing dump file*" 
+					su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack -F $ADMINSERVER_PID > $DIR/threads_F_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"
+				fi
+			fi
+
 			if [ -d $JBOSS_HOME/standalone/ ]; then
 				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PID_MQ > $DIR/threads_"$APPSERVER_NAME"_mq.log 2>> $DIR/errors.log"
 			fi
@@ -262,9 +282,10 @@ else
 fi
 
 # Weblogic Specific
+# su - wls_outsystems -s /bin/bash -c "/opt/Oracle/Middleware/OPatch/opatch lsinventory"
 if [ "$APPSERVER_NAME" == "$WEBLOGIC_NAME" ]; then
 	echo "    * Patch information"
-	su $PROCESS_USER - -s /bin/bash -c "cd $MW_HOME/utils/bsu ; ./bsu.sh -prod_dir=$WL_HOME -status=applied -verbose -view > $DIR/weblogic_patches 2>> $DIR/errors.log"
+	su - $PROCESS_USER -s /bin/bash -c "cd $WL_HOME/../OPatch/; ./opatch lsinventory > $DIR/weblogic_patches 2>> $DIR/errors.log"
 fi
 
 
