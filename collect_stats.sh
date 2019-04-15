@@ -40,6 +40,7 @@
 # v1.22 * fixed no memory dumps in jboss when shell for user is /sbin/nologin
 # v1.23 * added a validation to check if the app_server thread dump is empty; If it's empty, forces the thread dump generation using jstack -F
 # v1.24 * added Weblogic information: AdminServer.log, weblogic patches (fixed), AdminServer thread dumps
+# v1.25 * added information on CPU usage and elapsed time of app server threads
 
 # 
 
@@ -54,7 +55,7 @@ PROCESS_USER=""
 LOGDAYS=30
 LOGS_FOLDER_ADMIN_SERVER=""
 
-VERSION="1.24"
+VERSION="1.25"
 
 # prepare for execution
 
@@ -260,6 +261,7 @@ else
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID heap_diagnostics > $DIR/heap_diagnostics_"$APPSERVER_NAME".log 2>> $DIR/errors.log"
 		else
 			echo "    * Thread Stacks"
+			su $PROCESS_USER - -s /bin/bash -c "ps -eLo pid,lwp,nlwp,ruser,pcpu,stime,etime|grep "$PROCESS_PID" > $DIR/lwpthread.txt"
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PROCESS_PID > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log"		
             if ! [ -s "$DIR/threads_"$APPSERVER_NAME".log" ]; then
 				echo "	*$DIR/threads_"$APPSERVER_NAME".log empty; Forcing dump file*" 
@@ -268,6 +270,7 @@ else
 
 			# for Weblogic, also add AdminServer thread dumps
 			if [ "$WL_DOMAIN" != "" ]; then
+				su $PROCESS_USER - -s /bin/bash -c "ps -eLo pid,lwp,nlwp,ruser,pcpu,stime,etime|grep "$PROCESS_PID" > $DIR/lwpthread.txt"
 				su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $ADMINSERVER_PID > $DIR/threads_"$WL_ADMIN_SERVER_NAME".log 2>> $DIR/errors.log"		
             	if ! [ -s "$DIR/threads_"$WL_ADMIN_SERVER_NAME".log" ]; then
 					echo "	*$DIR/threads_"$WL_ADMIN_SERVER_NAME".log empty; Forcing dump file*" 
