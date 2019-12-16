@@ -2,11 +2,11 @@
 
 # Change log
 # v1.0  * initial version
+# v1.1  * collect thread dumps from outsystems services
+#       * logs are now compressed into a single file
+#       * minor code corrections and improvements
 
-# TODO
-# - Allow collecting thread dumps from outsystems services 
-
-VERSION="1.0"
+VERSION="1.1"
 
 if [ ! -f /etc/sysconfig/outsystems ]; then
 	echo "OutSystems Platform is not installed on this server. Cancelling."
@@ -23,8 +23,9 @@ source /etc/sysconfig/outsystems
 
 echo ""
 echo "OutSystems Thread Collector v$VERSION"
+echo ""
 
-THREAD_FOLDER="thread_dumps"
+THREAD_FOLDER="thread_dumps_$(date +%Y%m%d_%H%M)"
 
 # Application server info
 PROCESS_USER=""
@@ -127,7 +128,7 @@ if [ -f $JAVA_BIN/../../bin/java ]; then
 fi
 
 
-mkdir -p thread_dumps/
+mkdir -p $THREAD_FOLDER/
 
 # Collect the thread dumps
 if [ "$PROCESS_PID" == "" ]; then
@@ -137,18 +138,37 @@ else
 	
 	while [ $COLLECT_COUNT -lt $COLLECT_TOTAL ]; do
 		let collect_print=COLLECT_COUNT+1
-		echo "Collecting $APPSERVER_NAME threads $collect_print of $COLLECT_TOTAL..."
+		
+		echo "Collecting threads $collect_print of $COLLECT_TOTAL."
+		
+		TIMESTAMP=$(date +%F_%H%M%S)
+		
+		# Collect application server threads
 		if [ -f $JAVA_BIN/jrcmd ]; then
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jrcmd $PROCESS_PID print_threads" > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log
 		else
 			su $PROCESS_USER - -s /bin/bash -c "$JAVA_BIN/jstack $PROCESS_PID" > $DIR/threads_"$APPSERVER_NAME".log 2>> $DIR/errors.log
 		fi
 		
-		TIMESTAMP=$(date +%F_%H%M%S)
-		FILENAME=$TIMESTAMP".log"
+		FILENAME=$TIMESTAMP"_"$APPSERVER_NAME".log"
 		cp $DIR/threads_$APPSERVER_NAME.log $THREAD_FOLDER/$FILENAME;
 		
-		echo "Threads collected successfully. You can find them in $THREAD_FOLDER/$FILENAME"
+		
+		# Collect OutSystems services threads
+		for SERVICE_INFO in $(su outsystems -c "$JAVA_HOME/bin/jps -l" | grep outsystems.hubedition | tr ' ' '|')
+		do
+			eval $(echo "$SERVICE_INFO" | gawk -F "|" '{print "SERVICE_PID="$1";SERVICE_PROCESS_NAME="$2}')
+			if [ -f $JAVA_HOME/bin/jrcmd ]; then
+				su outsystems - -s /bin/bash -c "$JAVA_HOME/bin/jrcmd $SERVICE_PID print_threads > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
+			else
+				su outsystems - -s /bin/bash -c "$JAVA_HOME/bin/jstack $SERVICE_PID > $DIR/threads_"$SERVICE_PROCESS_NAME".log 2>> $DIR/errors.log"
+			fi
+			
+			FILENAME=$TIMESTAMP"_"$SERVICE_PROCESS_NAME".log"
+			cp $DIR/threads_$SERVICE_PROCESS_NAME.log $THREAD_FOLDER/$FILENAME;
+			
+		done
+		
 		
 		let COLLECT_COUNT=COLLECT_COUNT+1
 		
@@ -160,5 +180,14 @@ else
 	
 fi
 
-# Delete the previously generated temporary folder
+# Package dumps
+echo ""
+echo "Packing information, please wait."
+PACKAGE_TARGET="outsystems_thread_dumps_$(date +%Y%m%d_%H%M).tgz"
+tar zcf $PACKAGE_TARGET -C $THREAD_FOLDER .
+echo "Threads collected successfully. You can find them in $PACKAGE_TARGET ."
+echo ""
+
+# Delete the previously generated temporary folders
 rm -rf $DIR
+rm -rf $THREAD_FOLDER
